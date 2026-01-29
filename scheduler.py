@@ -19,7 +19,7 @@ import sys
 import time
 import threading
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Callable, Optional, Union, List
 
 logger = logging.getLogger(__name__)
 
@@ -59,16 +59,17 @@ class Scheduler:
     
     基于 schedule 库实现，支持：
     - 每日定时执行
+    - 支持多个执行时间
     - 启动时立即执行
     - 优雅退出
     """
     
-    def __init__(self, schedule_time: str = "18:00"):
+    def __init__(self, schedule_times: Union[str, List[str]] = "18:00"):
         """
         初始化调度器
         
         Args:
-            schedule_time: 每日执行时间，格式 "HH:MM"
+            schedule_times: 每日执行时间，格式 "HH:MM" 或多个时间的列表
         """
         try:
             import schedule
@@ -77,7 +78,12 @@ class Scheduler:
             logger.error("schedule 库未安装，请执行: pip install schedule")
             raise ImportError("请安装 schedule 库: pip install schedule")
         
-        self.schedule_time = schedule_time
+        # 确保 schedule_times 是列表形式
+        if isinstance(schedule_times, str):
+            self.schedule_times = [schedule_times]
+        else:
+            self.schedule_times = schedule_times
+        
         self.shutdown_handler = GracefulShutdown()
         self._task_callback: Optional[Callable] = None
         self._running = False
@@ -92,9 +98,10 @@ class Scheduler:
         """
         self._task_callback = task
         
-        # 设置每日定时任务
-        self.schedule.every().day.at(self.schedule_time).do(self._safe_run_task)
-        logger.info(f"已设置每日定时任务，执行时间: {self.schedule_time}")
+        # 设置每日定时任务（支持多个时间）
+        for time_str in self.schedule_times:
+            self.schedule.every().day.at(time_str).do(self._safe_run_task)
+            logger.info(f"已设置每日定时任务，执行时间: {time_str}")
         
         if run_immediately:
             logger.info("立即执行一次任务...")
@@ -152,7 +159,7 @@ class Scheduler:
 
 def run_with_schedule(
     task: Callable,
-    schedule_time: str = "18:00",
+    schedule_time: Union[str, List[str]] = "18:00",
     run_immediately: bool = True
 ):
     """
@@ -160,10 +167,10 @@ def run_with_schedule(
     
     Args:
         task: 要执行的任务函数
-        schedule_time: 每日执行时间
+        schedule_time: 每日执行时间，可传入单个时间字符串或多个时间的列表
         run_immediately: 是否立即执行一次
     """
-    scheduler = Scheduler(schedule_time=schedule_time)
+    scheduler = Scheduler(schedule_times=schedule_time)
     scheduler.set_daily_task(task, run_immediately=run_immediately)
     scheduler.run()
 

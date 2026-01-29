@@ -966,9 +966,11 @@ def main() -> int:
             def scheduled_task():
                 run_full_analysis(config, args, stock_codes)
             
+            # 解析调度时间（支持多个时间，逗号分隔）
+            schedule_times = [time.strip() for time in config.schedule_time.split(',') if time.strip()]
             run_with_schedule(
                 task=scheduled_task,
-                schedule_time=config.schedule_time,
+                schedule_time=schedule_times,
                 run_immediately=True  # 启动时先执行一次
             )
             return 0
